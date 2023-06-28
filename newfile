@@ -3,10 +3,8 @@ import boto3
 
 app = Flask(__name__)
 
-s3 = boto3.client('s3',
-                  region_name='us-east-1')
-textract= boto3.client('textract',
-                        region_name='us-east-1')
+s3 = boto3.client('s3')
+textract= boto3.client('textract')
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
