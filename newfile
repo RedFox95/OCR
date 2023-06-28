@@ -4,12 +4,8 @@ import boto3
 app = Flask(__name__)
 
 s3 = boto3.client('s3',
-                  aws_access_key_id='AKIAZPDZRR7NDEYZ434T',
-                  aws_secret_access_key='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',
                   region_name='us-east-1')
 textract= boto3.client('textract',
-                       aws_access_key_id='AKIAZPDZRR7NDEYZ434T',
-                        aws_secret_access_key='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',
                         region_name='us-east-1')
 
 @app.route('/', methods=['GET', 'POST'])
