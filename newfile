@@ -1,6 +1,5 @@
 from flask import Flask, request, redirect, url_for
 import boto3
-import time
 
 app = Flask(__name__)
 
@@ -12,44 +11,6 @@ def upload_file():
     if request.method == 'POST':
         file = request.files['file']
         s3.upload_fileobj(file, '1009testbucket', file.filename)
-
-        response = textract.start_document_analysis(
-            DocumentLocation={
-                'S3Object': {
-                    'Bucket': '1009testbucket', 'Name': file.filename
-                }
-            },
-            FeatureTypes=["FORMS"]
-        )
-
-        # Extract the JobId for future reference
-        job_id = response['JobId']
-
-        # Initial response is not always complete, hence we loop until we get the FULL document analysis
-        while True:
-            response = textract.get_document_analysis(JobId=job_id)
-
-            status = response['JobStatus']
-            if status in ['SUCCEEDED', 'FAILED']:
-                break
-
-            print("Waiting for completion...")
-            time.sleep(5)
-
-        # Print detected key-value pairs
-        for item in response["Blocks"]:
-            if item["BlockType"] == "KEY_VALUE_SET":
-                if 'KEY' in item['EntityTypes']:
-                    if 'Text' in item:
-                        print('Key: ', item['Text'])
-                    else:
-                        print('Key detected but no text found.')
-                else:
-                    if 'Text' in item:
-                        print('Value: ', item['Text'])
-                    else:
-                        print('Value detected but no text found.')
-
 
         return redirect(url_for('upload_file'))
 
