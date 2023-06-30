@@ -41,25 +41,3 @@ uploadButton.addEventListener('click', () => {
     console.log('No file selected');
   }
 });
-
-// Function to display the list of uploaded files
-function displayUploadedFiles() {
-  const fileList = document.getElementById('fileList');
-  fileList.innerHTML = '';
-
-  uploadedFiles.forEach(fileInfo => {
-    const listItem = document.createElement('li');
-    listItem.textContent = fileInfo.name;
-
-    // Create a container for displaying the file content
-    const fileContentContainer = document.createElement('div');
-
-    // Create a text element to display the file content
-    const fileContentText = document.createElement('pre');
-    fileContentText.textContent = fileInfo.content;
-
-    fileContentContainer.appendChild(fileContentText);
-    listItem.appendChild(fileContentContainer);
-    fileList.appendChild(listItem);
-  });
-}
