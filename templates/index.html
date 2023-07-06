@@ -1,0 +1,79 @@
+<!-- index.html -->
+
+<!doctype html>
+<html>
+<head>
+  <title>Chello - OCR Tool</title>
+  <style>
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      color: #A120D1;
+      font-size: 48px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .center-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
+
+    .button-group {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    input[type="file"],
+    input[type="submit"] {
+      padding: 10px 20px;
+      margin: 0 5px;
+    }
+
+    .message {
+      text-align: center;
+      margin-top: 10px;
+      opacity: 1;
+      transition: opacity 0.5s ease;
+    }
+  </style>
+
+  <script>
+    // Function to fade out the message after 5 seconds
+    function fadeOutMessage() {
+      var message = document.querySelector('.message');
+      setTimeout(function() {
+        message.style.opacity = '0';
+      }, 5000);
+    }
+    
+    // Call the fadeOutMessage function after the page loads
+    window.addEventListener('load', fadeOutMessage);
+  </script>
+</head>
+<body>
+  <div class="center-container">
+    <h1>Chello OCR</h1>
+    <form method="post" enctype="multipart/form-data" action="/">
+      <div class="button-group">
+        <input type="file" name="file">
+        <input type="submit" value="Upload">
+      </div>
+      {% if message %}
+        <p class="message">{{ message }}</p>
+      {% endif %}
+    </form>
+  </div>
+</body>
+</html>
+
+
+
