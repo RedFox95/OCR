@@ -1,0 +1,82 @@
+import boto3
+import json
+import time
+
+def check_job_status(job_id):
+    textract = boto3.client('textract')
+    response = textract.get_document_analysis(JobId=job_id)
+    status = response['JobStatus']
+    print(f"Job status: {status}")
+    
+    if status in ['SUCCEEDED', 'FAILED']:
+        return status, response
+    else:
+        return check_job_status(job_id)
+
+def lambda_handler(event, context):
+    s3_bucket_name = event['Records'][0]['s3']['bucket']['name']
+    s3_object_key = event['Records'][0]['s3']['object']['key']
+
+    textract = boto3.client('textract')
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('TextractResultsTable')
+
+    # Start the Textract job
+    textract_start_analysis = textract.start_document_analysis(
+        DocumentLocation={
+            'S3Object': {
+                'Bucket': s3_bucket_name,
+                'Name': s3_object_key
+            }
+        },
+        FeatureTypes=['FORMS']
+    )
+    
+    # Get the JobId
+    job_id = textract_start_analysis['JobId']
+    print(f"Job started with ID: {job_id}!")
+    
+    status, response = check_job_status(job_id)
+    
+    # If the job succeeded, store each key-value pair in DynamoDB
+    if status == 'SUCCEEDED':
+        print(f"Job {job_id} succeeded!")
+        blocks = {block['Id']: block for block in response.get('Blocks', [])}
+
+        print(f"Received {len(blocks)} blocks from Textract")
+        
+        for block in blocks.values():
+            if block['BlockType'] == 'KEY_VALUE_SET' and 'KEY' in block['EntityTypes']:
+                print(f"Processing key block {block['Id']}")
+                print(f"Block content: {json.dumps(block, indent=2)}")
+
+                key_text = ' '.join([blocks[id].get('Text', '') for relationship in block.get('Relationships', []) if relationship.get('Type') == 'CHILD' for id in relationship.get('Ids', []) if id in blocks])
+
+                value_text = ''
+                for relationship in block.get('Relationships', []):
+                    if relationship.get('Type') == 'VALUE':
+                        for id in relationship.get('Ids', []):
+                            if id in blocks:
+                                value_block = blocks[id]
+                                value_text += value_block.get('Text', '')
+                                for child_relationship in value_block.get('Relationships', []):
+                                    if child_relationship.get('Type') == 'CHILD':
+                                        for child_id in child_relationship.get('Ids', []):
+                                            if child_id in blocks:
+                                                value_text += ' ' + blocks[child_id].get('Text', '')
+
+                print(f"Key: {key_text}, Value: {value_text}")
+
+                item = {
+                    'JobId': job_id,
+                    'BlockId': block['Id'],
+                    'Key': key_text,
+                    'Value': value_text
+                }
+
+                table.put_item(Item=item)
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Textract processing completed successfully!')
+    }
