@@ -1,6 +1,5 @@
 import boto3
 import json
-import time
 
 def check_job_status(job_id):
     textract = boto3.client('textract')
@@ -29,8 +28,29 @@ def lambda_handler(event, context):
                 'Name': s3_object_key
             }
         },
-        FeatureTypes=['FORMS']
+        FeatureTypes=["QUERIES"],
+        QueriesConfig={
+            "Queries": [
+                {
+                    "Alias": "HoursWorkedQuery",
+                    "Pages": ["1"],
+                    "Text": "How many hours were worked for gross wages?"
+                },
+                {
+                    "Alias": "PersonNameQuery",
+                    "Pages": ["1"],
+                    "Text": "What is the persons name on this document?"
+                },
+                {
+                    "Alias": "PeriodWorkedQuery",
+                    "Pages": ["1"],
+                    "Text": "What was the period this person worked during?"
+                }
+            ]
+        }
     )
+
+
     
     # Get the JobId
     job_id = textract_start_analysis['JobId']
@@ -41,40 +61,30 @@ def lambda_handler(event, context):
     # If the job succeeded, store each key-value pair in DynamoDB
     if status == 'SUCCEEDED':
         print(f"Job {job_id} succeeded!")
-        blocks = {block['Id']: block for block in response.get('Blocks', [])}
-
-        print(f"Received {len(blocks)} blocks from Textract")
         
-        for block in blocks.values():
-            if block['BlockType'] == 'KEY_VALUE_SET' and 'KEY' in block['EntityTypes']:
-                print(f"Processing key block {block['Id']}")
-                print(f"Block content: {json.dumps(block, indent=2)}")
+        answers = []
+        response_blocks = response.get('Blocks', [])
+        
+        for block in response_blocks:
+            if block['BlockType'] == 'QUERY_RESULT':
+                block_id = block['Id']
+                
+                answer_value = block['Text']
+                confidence_score = str(block['Confidence'])
+                
+                answers.append({
+                    'Text': answer_value,
+                    'Confidence': confidence_score
+                })
+                
+                print(block)
 
-                key_text = ' '.join([blocks[id].get('Text', '') for relationship in block.get('Relationships', []) if relationship.get('Type') == 'CHILD' for id in relationship.get('Ids', []) if id in blocks])
+        item = {
+            'JobId': job_id,
+            'Answers': answers
+        }
 
-                value_text = ''
-                for relationship in block.get('Relationships', []):
-                    if relationship.get('Type') == 'VALUE':
-                        for id in relationship.get('Ids', []):
-                            if id in blocks:
-                                value_block = blocks[id]
-                                value_text += value_block.get('Text', '')
-                                for child_relationship in value_block.get('Relationships', []):
-                                    if child_relationship.get('Type') == 'CHILD':
-                                        for child_id in child_relationship.get('Ids', []):
-                                            if child_id in blocks:
-                                                value_text += ' ' + blocks[child_id].get('Text', '')
-
-                print(f"Key: {key_text}, Value: {value_text}")
-
-                item = {
-                    'JobId': job_id,
-                    'BlockId': block['Id'],
-                    'Key': key_text,
-                    'Value': value_text
-                }
-
-                table.put_item(Item=item)
+        table.put_item(Item=item)
     
     return {
         'statusCode': 200,
